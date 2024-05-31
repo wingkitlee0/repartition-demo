@@ -1,0 +1,17 @@
+[envs.test]
+dependencies = [
+  "pytest",
+  "pytest-benchmark",
+]
+
+[[envs.test.matrix]]
+python = ["3.10", "3.11", "3.12"]
+
+
+[envs.dev]
+dependencies = [
+  "ipython"
+]
+
+[[envs.dev.matrix]]
+python = ["3.11"]

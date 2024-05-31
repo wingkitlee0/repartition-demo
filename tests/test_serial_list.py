@@ -1,6 +1,5 @@
 import pytest
-
-from repartition.serial.list_impl import split_blocks, merge_blocks
+from repartition.serial.list_impl import merge_blocks, split_blocks
 
 
 @pytest.fixture

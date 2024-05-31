@@ -1,16 +1,17 @@
 import asyncio
 import itertools
 from collections import deque
+from collections.abc import Iterator
 from math import ceil
-from typing import Any, Deque, Iterator, List, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pyarrow as pa
 import ray
-from ray.data.block import BlockAccessor, BlockExecStats, BlockMetadata
+from ray.data.block import BlockAccessor, BlockExecStats
 
 
-def batched(blocks: List[Any], batch_size: int) -> Iterator[List[Any]]:
+def batched(blocks: list[Any], batch_size: int) -> Iterator[list[Any]]:
     """Iterates over the blocks and yields batches of objects.
 
     Note:
@@ -21,9 +22,8 @@ def batched(blocks: List[Any], batch_size: int) -> Iterator[List[Any]]:
 
 
 @ray.remote
-def get_blocks_ref(blocks: List[List[int]]) -> Iterator[ray.ObjectRef]:
-    for block in blocks:
-        yield block
+def get_blocks_ref(blocks: list[list[int]]) -> Iterator[ray.ObjectRef]:
+    yield from blocks
 
 
 @ray.remote
@@ -33,7 +33,7 @@ class Splitter:
         self.name = ray.get_runtime_context().get_actor_name()
         self.item_count = 0
 
-    def split_list(self, item: List[int]) -> Iterator[Union[List[int], List[List[int]]]]:
+    def split_list(self, item: list[int]) -> Iterator[list[int] | list[list[int]]]:
         group_names = []
         for group_name, group in itertools.groupby(item, lambda x: x):
             group_names.append(group_name)
@@ -42,7 +42,7 @@ class Splitter:
         print(f"{self.name}: {group_names=}")
         yield group_names
 
-    def split_pyarrow_table(self, item: pa.Table, key_column_name: str) -> Iterator[Union[pa.Table, List[int]]]:
+    def split_pyarrow_table(self, item: pa.Table, key_column_name: str) -> Iterator[pa.Table | list[int]]:
         """Split a single table into multiple parts. Each part has the
         same group key.
         """
@@ -60,7 +60,7 @@ class Splitter:
             yield [arr[0]]
 
         group_names = []
-        for start, end in zip(indices[:-1], indices[1:]):
+        for start, end in itertools.pairwise(indices):
             group_names.append(arr[start])
             yield item.slice(start, end)
         yield group_names
@@ -72,16 +72,16 @@ class Merger:
         self.idx = idx
         self.name = f"Merger-({self.idx})"
 
-    def merge_list(self, group_keys: List[int], blks):
+    def merge_list(self, group_keys: list[int], blks):
         blks = ray.get(list(blks))
         print(f"{self.name}: {group_keys=}, {blks=}")
 
-        for key, block_iterator in itertools.groupby(zip(group_keys, blks), lambda x: x[0]):
+        for key, block_iterator in itertools.groupby(zip(group_keys, blks, strict=True), lambda x: x[0]):
             block = [b for _, b in block_iterator]
             print(key, block)
             yield list(np.concatenate(block))
 
-    def merge_tables(self, keys_and_blocks: List[Tuple[int, ray.ObjectRef]]):
+    def merge_tables(self, keys_and_blocks: list[tuple[int, ray.ObjectRef]]):
         """Merge pyarrow tables
 
         Neighboring tables with the same group key are concatenated. Similar to
@@ -93,8 +93,7 @@ class Merger:
             the output is a list of metadata for each block.
         """
         # materialize the blocks because of the concatenation
-        keys = [k for k, _ in keys_and_blocks]
-        blks = [b for _, b in keys_and_blocks]
+        keys, blks = map(list, zip(*keys_and_blocks, strict=True))  # two lists
         blks = ray.get(blks)
 
         blks_len = [len(b) for b in blks]
@@ -102,7 +101,7 @@ class Merger:
 
         all_keys = []
         all_meta = []
-        for key, block_iterator in itertools.groupby(zip(keys, blks), lambda x: x[0]):
+        for key, block_iterator in itertools.groupby(zip(keys, blks, strict=True), lambda x: x[0]):
             stats = BlockExecStats.builder()
             blocks = [b for _, b in block_iterator]
             all_keys.append(key)
@@ -128,7 +127,7 @@ class Actor:
         self.world_size = world_size
         self.name = f"Actor-({self.idx})"
 
-        self.splitted_blocks: Deque[Tuple[int, ray.ObjectRef]] = deque()
+        self.splitted_blocks: deque[tuple[int, ray.ObjectRef]] = deque()
 
         # For exchange boundary
         self.is_left_most = self.idx == 0
@@ -143,7 +142,7 @@ class Actor:
         # For output
         self.output_queue = asyncio.Queue()
 
-    async def split(self, block_refs: List[ray.ObjectRef]) -> List[ray.ObjectRef]:
+    async def split(self, block_refs: list[ray.ObjectRef]) -> list[ray.ObjectRef]:
         """Split a list of blocks based on the group key.
 
         This is the map task that generates multiple sub-blocks for each input block,
@@ -160,7 +159,7 @@ class Actor:
             # materialize the keys but keep the block refs
             splitted_groups = await splitted.pop()
 
-            self.splitted_blocks.extend(zip(splitted_groups, splitted))
+            self.splitted_blocks.extend(zip(splitted_groups, splitted, strict=False))
 
         if not self.is_left_most:
             key, blk = self.splitted_blocks.popleft()
@@ -236,8 +235,8 @@ class Actor:
 
 
 async def apply_repartition(
-    idx, blocks_with_metadata: List[ray.ObjectRef], keys, num_actors: int
-) -> List[List[ray.ObjectRef]]:
+    idx, blocks_with_metadata: list[ray.ObjectRef], keys, num_actors: int
+) -> list[list[ray.ObjectRef]]:
     if len(blocks_with_metadata) <= num_actors:
         num_actors = 1
 
@@ -253,7 +252,7 @@ async def apply_repartition(
         blocks = [b for b, _ in bm]
         split_tasks.append(actors[i].split.remote(blocks))
 
-    boundary_tasks = [actor.send_to_left.remote(left_actor) for actor, left_actor in zip(actors[1:], actors[:-1])]
+    boundary_tasks = [actor.send_to_left.remote(left_actor) for left_actor, actor in itertools.pairwise(actors)]
 
     merge_tasks = [actor.merge.remote() for actor in actors]
     consume_tasks = [actor.consume.remote() for actor in actors]

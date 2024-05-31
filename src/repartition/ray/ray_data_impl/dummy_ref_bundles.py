@@ -1,7 +1,6 @@
 """Mimic what Ray Data does"""
 
 import logging
-from typing import List
 from venv import logger
 
 import pyarrow as pa
@@ -41,7 +40,7 @@ def get_ref_bundles_from_pyarrow_dataset(
     pq_ds: pq.ParquetDataset,
     batch_size: int,
     columns: list[str],
-) -> List[RefBundle]:
+) -> list[RefBundle]:
 
     logger.debug(f"{len(pq_ds.fragments)} fragments")
 
@@ -50,7 +49,7 @@ def get_ref_bundles_from_pyarrow_dataset(
         blocks_and_metadata = list(get_blocks_and_metadata_from_fragment.remote(fragment, batch_size, columns))
         block_refs, metadata_ref = blocks_and_metadata[:-1], blocks_and_metadata[-1]
         metadata = ray.get(metadata_ref)  # a list
-        blocks_with_metadata = list(zip(block_refs, metadata))
+        blocks_with_metadata = list(zip(block_refs, metadata, strict=True))
         ref_bundles.append(
             RefBundle(
                 blocks=blocks_with_metadata,

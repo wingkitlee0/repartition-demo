@@ -1,7 +1,6 @@
 import argparse
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pyarrow as pa
@@ -16,7 +15,7 @@ class RandomDataCreator:
     nmax_per_group: int = 4
     ordered: bool = True
 
-    def generate_date_list(self, seed: Optional[int] = None) -> list[np.ndarray]:
+    def generate_date_list(self, seed: int | None = None) -> list[np.ndarray]:
         rng = np.random.RandomState(seed)
 
         all_data = []

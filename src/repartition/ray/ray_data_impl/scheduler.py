@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import ray
 from ray.data._internal.execution.interfaces import RefBundle
@@ -8,14 +8,16 @@ from ray.data._internal.planner.exchange.interfaces import ExchangeTaskScheduler
 from ray.data._internal.stats import StatsDict
 
 from repartition.ray.actor_impl.core import apply_repartition
-from repartition.ray.actor_impl.repartition_task_spec import RepartitionByColumnTaskSpec
+from repartition.ray.ray_data_impl.repartition_task_spec import (
+    RepartitionByColumnTaskSpec,
+)
 
 
 def repartition_by_column(
-    refs: List[RefBundle],
-    keys: Union[str, List[str]],
+    refs: list[RefBundle],
+    keys: str | list[str],
     num_actors: int,
-    ray_remote_args: Optional[Dict[str, Any]] = None,
+    ray_remote_args: dict[str, Any] | None = None,
 ):
     split_spec = RepartitionByColumnTaskSpec(keys=keys, concurrency=num_actors)
     scheduler = RepartitionByColumnTaskScheduler(split_spec)
@@ -34,12 +36,12 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
     def execute(
         self,
-        refs: List[RefBundle],
+        refs: list[RefBundle],
         output_num_blocks: int,
         ctx: TaskContext,
-        map_ray_remote_args: Optional[Dict[str, Any]] = None,
-        reduce_ray_remote_args: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[List[RefBundle], StatsDict]:
+        map_ray_remote_args: dict[str, Any] | None = None,
+        reduce_ray_remote_args: dict[str, Any] | None = None,
+    ) -> tuple[list[RefBundle], StatsDict]:
         print("len(refs)", len(refs))
         print("len(refs[0].blocks)", len(refs[0].blocks))
 
@@ -57,7 +59,9 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
                 repartitioned_blocks.append(
                     RefBundle(
-                        blocks=list(zip(blocks_or_metadata, metadata)),  # list of tuples of (block, metadata)
+                        blocks=list(
+                            zip(blocks_or_metadata, metadata, strict=True)
+                        ),  # list of tuples of (block, metadata)
                         owns_blocks=owns_blocks,
                     )
                 )

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, TypeVar, Union
+from typing import TypeVar
 
 from ray.data._internal.planner.exchange.interfaces import ExchangeTaskSpec
 from ray.data.block import Block, BlockMetadata
@@ -14,8 +14,8 @@ class RepartitionByColumnTaskSpec(ExchangeTaskSpec):
 
     def __init__(
         self,
-        keys: Union[str, List[str]],
-        concurrency: Optional[int],
+        keys: str | list[str],
+        concurrency: int | None,
     ):
         super().__init__(
             map_args=[keys, concurrency],
@@ -27,14 +27,14 @@ class RepartitionByColumnTaskSpec(ExchangeTaskSpec):
         idx: int,
         block: Block,
         output_num_blocks: int,
-        keys: Union[str, List[str]],
-    ) -> List[Union[BlockMetadata, Block]]:
+        keys: str | list[str],
+    ) -> list[BlockMetadata | Block]:
         pass
 
     @staticmethod
     def reduce(
-        keys: Union[str, List[str]],
-        *mapper_outputs: List[Block],
+        keys: str | list[str],
+        *mapper_outputs: list[Block],
         partial_reduce: bool = False,
-    ) -> Tuple[Block, BlockMetadata]:
+    ) -> tuple[Block, BlockMetadata]:
         pass
