@@ -1,1 +1,1 @@
-# repartition-demo
+# Demo of a repartition-by-column algorithms
