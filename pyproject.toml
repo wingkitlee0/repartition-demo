@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repartition-demo"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Kit Lee", email = "7000003+wingkitlee0@users.noreply.github.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "pyarrow",
+  "ray>=2.10",
+  "pandas",
+  "polars",
+]
+
+[project.urls]
+Documentation = "https://github.com/wingkitlee0/repartition-demo#readme"
+Issues = "https://github.com/wingkitlee0/repartition-demo/issues"
+Source = "https://github.com/wingkitlee0/repartition-demo"
+
+[tool.hatch.version]
+path = "src/repartition/__about__.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+  "/docs",
+  "/data",
+  "/scratch",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repartition"]
+
+
+[project.optional-dependencies]
+dev = [
+  "black",
+  "isort",
+]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/repartition tests}"
+
+[tool.coverage.run]
+source_pkgs = ["repartition", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/repartition/__about__.py",
+]
+
+[tool.coverage.paths]
+hatch_demo = ["src/repartition", "*/repartition-demo/src/repartition"]
+tests = ["tests", "*/repartition/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.isort]
+profile = "black"
+py_version=311
+
+[tool.black]
+line-length = 120
