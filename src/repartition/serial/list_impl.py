@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterator
+from collections.abc import Iterator
 
 
 def split(block: list[int]) -> Iterator[tuple[int, list[int]]]:
@@ -9,8 +9,7 @@ def split(block: list[int]) -> Iterator[tuple[int, list[int]]]:
 
 def split_blocks(blocks: list[list[int]]) -> Iterator[tuple[int, list[int]]]:
     for block in blocks:
-        for k, g in split(block):
-            yield k, g
+        yield from split(block)
 
 
 def merge_blocks(items: Iterator[tuple[int, list[int]]]) -> Iterator[tuple[int, list[int]]]:

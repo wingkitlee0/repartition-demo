@@ -1,5 +1,4 @@
 import argparse
-import logging
 
 import polars as pl
 import ray
@@ -52,17 +51,15 @@ def main():
 
     if args.input is not None:
         ray_ds = ray.data.read_parquet(args.input)
-    else:
-        if args.large:
-            if args.full:
-                ray_ds = ray.data.read_parquet("../43_repartition_barebone/data/")
-            else:
-                ray_ds = ray.data.read_parquet("../43_repartition_barebone/data/data-0.parquet")
+    elif args.large:
+        if args.full:
+            ray_ds = ray.data.read_parquet("../43_repartition_barebone/data/")
         else:
-            if args.full:
-                ray_ds = ray.data.read_parquet("../43_repartition_barebone/data_small")
-            else:
-                ray_ds = ray.data.read_parquet("../43_repartition_barebone/data_small/data-0.parquet")
+            ray_ds = ray.data.read_parquet("../43_repartition_barebone/data/data-0.parquet")
+    elif args.full:
+        ray_ds = ray.data.read_parquet("../43_repartition_barebone/data_small")
+    else:
+        ray_ds = ray.data.read_parquet("../43_repartition_barebone/data_small/data-0.parquet")
 
     if args.mode == "rbc":
         result = (
@@ -81,7 +78,8 @@ def main():
     elif args.mode == "groupby":
         result = ray_ds.groupby("g").map_groups(agg_fn, batch_format="pyarrow")
     else:
-        raise NotImplementedError(f"mode {args.mode} not supported")
+        msg = f"mode {args.mode} not supported"
+        raise NotImplementedError(msg)
 
     if args.materialize:
         result.materialize()

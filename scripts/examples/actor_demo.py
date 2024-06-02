@@ -1,15 +1,27 @@
 import argparse
+import logging
 
-import pyarrow as pa
+import pandas as pd
 import pyarrow.parquet as pq
 import ray
-from repartition.ray.actor_impl import (
+from repartition.ray.ray_data_impl import (
     get_ref_bundles_from_pyarrow_dataset,
     repartition_by_column,
 )
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+def get_num_rows_per_block(repartitioned_ref_bundles: list[list]) -> list[int]:
+    results = []
+    for ref_bundle in repartitioned_ref_bundles:
+        print(len(ref_bundle.blocks))
+        for block_ref, block_metadata in ref_bundle.blocks:
+            num_rows = block_metadata.num_rows
+            # block = ray.get(block_ref)
+            print(num_rows)
+            results.append(num_rows)
+    return results
 
 
 def main():
@@ -36,17 +48,14 @@ def main():
 
     print(f"number of ref_bundles: {len(repartitioned_ref_bundles)}")
 
-    results = []
-    for ref_bundle in repartitioned_ref_bundles:
-        print(len(ref_bundle.blocks))
-        for block_ref, block_metadata in ref_bundle.blocks:
-            num_rows = block_metadata.num_rows
-            # block = ray.get(block_ref)
-            print(num_rows)
-            results.append(num_rows)
+    results = get_num_rows_per_block(repartitioned_ref_bundles)
 
     print(f"number of blocks: {len(results)}")
     print(f"total number of rows: {sum(results)}")
+
+    df = pd.Series(results, name="num_rows")
+    df.sort_values(inplace=True)
+    df.to_csv("num_rows.csv", index_label="id")
 
 
 if __name__ == "__main__":
