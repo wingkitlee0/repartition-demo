@@ -101,7 +101,7 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
         all_blocks = [
             RefBundle([(block, meta)], input_owned_by_consumer)
-            for block, meta in zip(result_refs, all_metadata, strict=False)
+            for block, meta in zip(result_refs, all_metadata, strict=True)
         ]
 
         assert (

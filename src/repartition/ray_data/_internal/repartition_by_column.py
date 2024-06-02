@@ -83,12 +83,9 @@ def merge_tables(keys_and_blocks: list[tuple]):
         the output is a list of metadata for each block.
     """
     if len(keys_and_blocks) == 0:
-        return [], [], []
+        return
 
-    all_blocks, all_metadata, all_keys = [], [], []
     for key, block_iterator in itertools.groupby(keys_and_blocks, lambda x: x[0]):
-        all_keys.append(key)
-
         stats = BlockExecStats.builder()
         block_builder = DelegatingBlockBuilder()
 
@@ -101,11 +98,7 @@ def merge_tables(keys_and_blocks: list[tuple]):
             input_files=[],
             exec_stats=stats.build(),
         )
-        all_blocks.append(block)
-        all_metadata.append(meta)
-        all_keys.append(key)
-
-    return all_blocks, all_metadata, all_keys
+        yield block, meta, key
 
 
 @ray.remote
@@ -190,9 +183,7 @@ class Actor:
     async def merge_blocks(self):
         await self.consume_ready.wait()
 
-        all_blocks, all_metadata, all_keys = merge_tables(self.split_queue)
-
-        for block, meta, key in zip(all_blocks, all_metadata, all_keys, strict=False):
+        for block, meta, key in merge_tables(self.split_queue):
             self.output_queue.put_nowait((block, meta, key))
         self._num_output_blocks = self.output_queue.qsize()
 
@@ -222,9 +213,7 @@ class Actor:
         right_key, right_blk = await self.right_actor.send_to_left.remote()
         left_key, left_block = await self.right_bucket.get()
 
-        all_blocks, all_metadata, all_keys = merge_tables([(left_key, left_block), (right_key, right_blk)])
-
-        for blk, meta, key in zip(all_blocks, all_metadata, all_keys, strict=False):
+        for blk, meta, key in merge_tables([(left_key, left_block), (right_key, right_blk)]):
             self.output_queue.put_nowait((blk, meta, key))
 
         # update
@@ -277,7 +266,7 @@ def retreive_results(actors):
 
     refs = [
         actor.consume.options(num_returns=num_blocks + 2).remote()
-        for num_blocks, actor in zip(num_ouput_blocks, actors, strict=False)
+        for num_blocks, actor in zip(num_ouput_blocks, actors, strict=True)
     ]
 
     output_blocks, output_metadata, output_keys = [], [], []

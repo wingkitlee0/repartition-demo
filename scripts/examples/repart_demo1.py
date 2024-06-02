@@ -1,3 +1,11 @@
+"""
+Example:
+
+    ```
+    time python scripts/examples/repart_demo1.py -i data/unordered/ -n 10 -b 20_000 --debug
+    ```
+
+"""
 import argparse
 import logging
 
