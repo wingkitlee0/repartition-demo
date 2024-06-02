@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from typing import Any
 
@@ -8,9 +10,7 @@ from ray.data._internal.planner.exchange.interfaces import ExchangeTaskScheduler
 from ray.data._internal.stats import StatsDict
 
 from repartition.ray.actor_impl.core import apply_repartition
-from repartition.ray.ray_data_impl.repartition_task_spec import (
-    RepartitionByColumnTaskSpec,
-)
+from repartition.ray.ray_data_impl.repartition_task_spec import RepartitionByColumnTaskSpec
 
 
 def repartition_by_column(

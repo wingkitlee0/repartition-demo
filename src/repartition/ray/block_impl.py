@@ -26,4 +26,4 @@ def split_block(block, keys) -> Iterator[tuple[str | int, Block]]:
     for start, end in itertools.pairwise(indices):
         key = arr_[start]
         key = tuple(key) if isinstance(key, np.record) else key
-        yield key, accessor.slice(start, end)
+        yield key, accessor.slice(start, end, copy=True)

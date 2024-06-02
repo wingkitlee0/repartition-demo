@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TypeVar
 
 from ray.data._internal.planner.exchange.interfaces import ExchangeTaskSpec

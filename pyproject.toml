@@ -49,13 +49,6 @@ exclude = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/repartition"]
 
-
-[project.optional-dependencies]
-dev = [
-  "black",
-  "isort",
-]
-
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
@@ -82,9 +75,8 @@ exclude_lines = [
   "if TYPE_CHECKING:",
 ]
 
-[tool.isort]
-profile = "black"
-py_version=311
+[tool.ruff]
+extend = "ruff-defaults.toml"
 
-[tool.black]
-line-length = 120
+[tool.hatch.envs.hatch-static-analysis]
+config-path = "ruff-defaults.toml"

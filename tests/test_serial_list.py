@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 from repartition.serial.list_impl import merge_blocks, split_blocks
 
@@ -16,7 +18,6 @@ def dummy_data() -> list[list[int]]:
 
 
 def test_split_blocks(dummy_data):
-
     expected = [
         (1, [1, 1, 1]),
         (2, [2, 2, 2, 2]),

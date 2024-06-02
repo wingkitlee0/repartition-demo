@@ -1,18 +1,24 @@
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+import typing
+from typing import Any, TypeVar
 
 import ray
 from ray.data._internal.execution.interfaces import RefBundle, TaskContext
 from ray.data._internal.planner.exchange.interfaces import ExchangeTaskScheduler
+
 # from ray.data._internal.planner.exchange.repartition_task_spec import (
 #     RepartitionByColumnTaskSpec,
 # )
 # from ray.data._internal.repartition_by_column import repartition_runner
-from ray.data._internal.stats import StatsDict
 from ray.data.block import BlockMetadata
 from repartition.ray_data._internal.planner.exchange.repartition_task_spec import RepartitionByColumnTaskSpec
 from repartition.ray_data._internal.repartition_by_column import repartition_runner
+
+if typing.TYPE_CHECKING:
+    from ray.data._internal.stats import StatsDict
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +31,12 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
     def execute(
         self,
-        refs: List[RefBundle],
+        refs: list[RefBundle],
         output_num_blocks: int,
         ctx: TaskContext,
-        map_ray_remote_args: Optional[Dict[str, Any]] = None,
-        reduce_ray_remote_args: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[List[RefBundle], StatsDict]:
+        map_ray_remote_args: dict[str, Any] | None = None,
+        reduce_ray_remote_args: dict[str, Any] | None = None,
+    ) -> tuple[list[RefBundle], StatsDict]:
         """
         Args:
             output_num_blocks: not used as it's determined by the actual split
@@ -39,7 +45,7 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
         input_owned_by_consumer = all(rb.owns_blocks for rb in refs)
 
-        logger.info(f"number of RefBundles = {len(refs)}")
+        logger.info("number of RefBundles = %d", len(refs))
 
         if map_ray_remote_args is None:
             map_ray_remote_args = {}
@@ -56,9 +62,7 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
         # drop the metadata
         all_blocks = [b for ref_bundle in refs for b, _ in ref_bundle.blocks]
 
-        total_number_of_rows_input = sum(
-            [m.num_rows for ref_bundle in refs for _, m in ref_bundle.blocks]
-        )
+        total_number_of_rows_input = sum([m.num_rows for ref_bundle in refs for _, m in ref_bundle.blocks])
         logger.info(f"total number of rows input = {total_number_of_rows_input}")
 
         tstart = time.perf_counter()
@@ -70,9 +74,7 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
             )
         )
         tend = time.perf_counter()
-        logger.info(
-            f"Finished repartitioning {len(result_refs)=}, ({(tend-tstart):.2f}s)"
-        )
+        logger.info(f"Finished repartitioning {len(result_refs)=}, ({(tend-tstart):.2f}s)")
 
         # all_keys = []
         # for _ in range(num_actors):
@@ -90,25 +92,20 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
         # all_metadata = map_bar.fetch_until_complete(all_metadata)
         all_metadata = ray.get(all_metadata)
-        all_metadata: List[BlockMetadata] = [
-            m for metadata in all_metadata for m in metadata
-        ]
+        all_metadata: list[BlockMetadata] = [m for metadata in all_metadata for m in metadata]
         time_mid = time.perf_counter()
-        logger.info(
-            f"repartition time (up to all_metadata)= {(time_mid - time_start):.4}s"
-        )
+        logger.info("repartition time (up to all_metadata)= %0.4fs", (time_mid - time_start))
 
         # all_keys = ray.get(all_keys)
         # all_keys = [m for keys in all_keys for m in keys]
 
         all_blocks = [
             RefBundle([(block, meta)], input_owned_by_consumer)
-            for block, meta in zip(result_refs, all_metadata)
+            for block, meta in zip(result_refs, all_metadata, strict=False)
         ]
 
         assert (
-            len(all_blocks)
-            == len(all_metadata)
+            len(all_blocks) == len(all_metadata)
             #     len(all_blocks) == len(all_metadata) == len(all_keys)
         ), f"{len(all_blocks)=}, {len(all_metadata)=}, {len(all_keys)=}"
 
@@ -126,6 +123,6 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
         stats = {"repartition": all_metadata}
 
         time_end = time.perf_counter()
-        logger.info(f"repartition time = {(time_end - time_start):.4}s")
+        logger.info("repartition time (total)= %0.4fs", (time_end - time_start))
 
         return (all_blocks, stats)
