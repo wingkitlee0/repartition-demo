@@ -78,7 +78,8 @@ def main():
     elif args.mode == "groupby":
         result = ray_ds.groupby("g").map_groups(agg_fn, batch_format="pyarrow")
     else:
-        raise NotImplementedError(f"mode {args.mode} not supported")
+        msg = f"mode {args.mode} not supported"
+        raise NotImplementedError(msg)
 
     if args.materialize:
         result.materialize()
