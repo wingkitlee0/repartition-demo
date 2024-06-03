@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import partial
 
 import numpy as np
@@ -30,7 +32,6 @@ def test_tuple_0001(dummy_data):
 
 
 def generate_data(n: int, nchoice: int, seed=None, dtype=None):
-
     if dtype is None:
         dtype = np.int64
 
@@ -74,7 +75,6 @@ def test_rec_array_0002(dummy_data):
 
 
 def func_recarray(data, target: list[tuple[int, int]]):
-
     record_array = convert_into_recarray(data)
 
     indices = np.searchsorted(record_array, record_array[[3, 4]], side="right")
@@ -83,7 +83,6 @@ def func_recarray(data, target: list[tuple[int, int]]):
 
 
 def func_multicolumn(data, target: list[tuple[int, int]]):
-
     multi_column_array = np.array([_MultiColumnSortedKey(*k) for k in zip(*data.values(), strict=True)])
 
     indices = np.searchsorted(multi_column_array, [_MultiColumnSortedKey(*k) for k in target])
@@ -93,7 +92,6 @@ def func_multicolumn(data, target: list[tuple[int, int]]):
 
 @pytest.mark.parametrize("func", [func_recarray, func_multicolumn])
 def test_benchmark(benchmark, func, dummy_large_data):
-
     f = partial(func, dummy_large_data, target=[(1, 1), (1, 3)])
 
     indices = benchmark(f)
@@ -127,14 +125,12 @@ def test_size(dtype):
     ],
 )
 def test_get_key_boundaries_benchmark(benchmark, get_key_boundaries, dummy_large_data):
-
     func = partial(get_key_boundaries, dummy_large_data)
 
     benchmark(func)
 
 
 def test_get_key_boundaries_consistent(dummy_data):
-
     results = []
 
     for func in [get_key_boundaries_v0, get_key_boundaries_v1, get_key_boundaries_v2]:

@@ -1,0 +1,11 @@
+[format]
+preview = true
+
+line-length = 120
+
+quote-style = "double"
+
+
+[lint.per-file-ignores]
+"__init__.py" = ["E402"]
+"**/{tests,docs,tools,src}/*" = ["E402"]

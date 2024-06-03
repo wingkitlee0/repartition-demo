@@ -4,10 +4,8 @@ import logging
 import pandas as pd
 import pyarrow.parquet as pq
 import ray
-from repartition.ray.ray_data_impl import (
-    get_ref_bundles_from_pyarrow_dataset,
-    repartition_by_column,
-)
+from repartition.ray.dummy_ref_bundles import get_ref_bundles_from_pyarrow_dataset
+from repartition.ray.ray_data_impl import repartition_by_column
 
 logger = logging.getLogger(__name__)
 
