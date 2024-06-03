@@ -34,7 +34,24 @@ def mapping_func(table):
     )
 
 
-def process(paths, batch_size, num_actors: int):
+@ray.remote
+def ray_process_v0(i, rb, num_actors):
+    print(f"{i=}, {len(rb.blocks)=}")
+
+    block_refs = [b for b, _ in rb.blocks]
+
+    refs = list(repartition_runner(i, block_refs, ["g", num_actors]))
+
+    table_refs = refs[: -(num_actors * 2)]
+
+    ds = ray.data.from_arrow_refs(table_refs)
+
+    print(ds.schema)
+
+    return ds.map_batches(mapping_func, batch_size=None, batch_format="pyarrow").to_arrow_refs()
+
+
+def process_v0(paths, batch_size, num_actors: int):
     pq_ds = pq.ParquetDataset(paths)
 
     ref_bundles = get_ref_bundles_from_pyarrow_dataset(pq_ds, batch_size, None)
@@ -56,11 +73,16 @@ def process(paths, batch_size, num_actors: int):
         print(ds.schema)
 
         results = ds.map_batches(mapping_func, batch_size=None, batch_format="pyarrow").to_arrow_refs()
-        all_results.extend(results)
+
+        all_results.append(results)
 
     print("Processing output")
-    df = pl.from_arrow(ray.get(all_results))
+    df = pl.from_arrow(ray.get(ray.get(all_results)))
     df.write_csv(f"result_repartition_n{num_actors}.csv")
+
+
+def process_v1(paths, batch_size, num_actors: int):
+    pass
 
 
 def main():
@@ -70,6 +92,7 @@ def main():
     parser.add_argument("--input", "-i", type=str, required=True, help="input directory or file")
     parser.add_argument("-n", "--num-actors", type=int, default=3, help="number of actors")
     parser.add_argument("-b", "--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="batch size per block")
+    parser.add_argument("--mode", type=int, default=0, help="0: process_v0(), 1: process_v1()")
     parser.add_argument("--debug", action="store_true", help="debug mode")
     args = parser.parse_args()
 
@@ -78,11 +101,21 @@ def main():
         root_logger.setLevel(logging.DEBUG)
         logging.getLogger("ray.data").setLevel(logging.DEBUG)
 
-    process(
-        paths=args.input,
-        batch_size=args.batch_size,
-        num_actors=args.num_actors,
-    )
+    match args.mode:
+        case 0:
+            process_v0(
+                paths=args.input,
+                batch_size=args.batch_size,
+                num_actors=args.num_actors,
+            )
+        case 1:
+            process_v1(
+                paths=args.input,
+                batch_size=args.batch_size,
+                num_actors=args.num_actors,
+            )
+        case _:
+            raise ValueError(f"Unknown mode: {args.mode}")
 
 
 if __name__ == "__main__":

@@ -138,6 +138,7 @@ class Actor:
     def set_right_actor(self, right_actor):
         self.right_actor = right_actor
         self.right_actor_ready.set()
+        logger.debug("done set_right_actor(%s)", self.name)
 
     async def process(self, blocks: list[ray.ObjectRef]):
         """Process the blocks"""
