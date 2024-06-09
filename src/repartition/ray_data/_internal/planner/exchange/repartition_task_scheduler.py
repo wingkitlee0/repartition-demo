@@ -14,7 +14,9 @@ from ray.data._internal.planner.exchange.interfaces import ExchangeTaskScheduler
 # )
 # from ray.data._internal.repartition_by_column import repartition_runner
 from ray.data.block import BlockMetadata
-from repartition.ray_data._internal.planner.exchange.repartition_task_spec import RepartitionByColumnTaskSpec
+from repartition.ray_data._internal.planner.exchange.repartition_task_spec import (
+    RepartitionByColumnTaskSpec,
+)
 from repartition.ray_data._internal.repartition_by_column import repartition_runner
 
 if typing.TYPE_CHECKING:
@@ -62,7 +64,9 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
         # drop the metadata
         all_blocks = [b for ref_bundle in refs for b, _ in ref_bundle.blocks]
 
-        total_number_of_rows_input = sum([m.num_rows for ref_bundle in refs for _, m in ref_bundle.blocks])
+        total_number_of_rows_input = sum(
+            [m.num_rows for ref_bundle in refs for _, m in ref_bundle.blocks]
+        )
         logger.info(f"total number of rows input = {total_number_of_rows_input}")
 
         tstart = time.perf_counter()
@@ -74,7 +78,9 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
             )
         )
         tend = time.perf_counter()
-        logger.info(f"Finished repartitioning {len(result_refs)=}, ({(tend-tstart):.2f}s)")
+        logger.info(
+            f"Finished repartitioning {len(result_refs)=}, ({(tend-tstart):.2f}s)"
+        )
 
         # all_keys = []
         # for _ in range(num_actors):
@@ -92,9 +98,13 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
         # all_metadata = map_bar.fetch_until_complete(all_metadata)
         all_metadata = ray.get(all_metadata)
-        all_metadata: list[BlockMetadata] = [m for metadata in all_metadata for m in metadata]
+        all_metadata: list[BlockMetadata] = [
+            m for metadata in all_metadata for m in metadata
+        ]
         time_mid = time.perf_counter()
-        logger.info("repartition time (up to all_metadata)= %0.4fs", (time_mid - time_start))
+        logger.info(
+            "repartition time (up to all_metadata)= %0.4fs", (time_mid - time_start)
+        )
 
         # all_keys = ray.get(all_keys)
         # all_keys = [m for keys in all_keys for m in keys]

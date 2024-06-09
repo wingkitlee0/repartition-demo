@@ -54,7 +54,8 @@ def dummy_large_data():
 
 
 @pytest.mark.parametrize(
-    "n, nchoice, seed, expected", [(100, 10, 1234, [8, 12]), (100, 10, 1, [9, 9]), (100, 10, 2, [7, 13])]
+    "n, nchoice, seed, expected",
+    [(100, 10, 1234, [8, 12]), (100, 10, 1, [9, 9]), (100, 10, 2, [7, 13])],
 )
 def test_rec_array_0001(n, nchoice, seed, expected):
     data = generate_data(n, nchoice, seed=seed)
@@ -83,9 +84,13 @@ def func_recarray(data, target: list[tuple[int, int]]):
 
 
 def func_multicolumn(data, target: list[tuple[int, int]]):
-    multi_column_array = np.array([_MultiColumnSortedKey(*k) for k in zip(*data.values(), strict=True)])
+    multi_column_array = np.array(
+        [_MultiColumnSortedKey(*k) for k in zip(*data.values(), strict=True)]
+    )
 
-    indices = np.searchsorted(multi_column_array, [_MultiColumnSortedKey(*k) for k in target])
+    indices = np.searchsorted(
+        multi_column_array, [_MultiColumnSortedKey(*k) for k in target]
+    )
 
     return indices
 
@@ -106,7 +111,9 @@ def test_size(dtype):
     record_array = convert_into_recarray(data)
     bytes_recarray = record_array.nbytes
 
-    multi_column_array = np.array([_MultiColumnSortedKey(*k) for k in zip(*data.values(), strict=True)])
+    multi_column_array = np.array(
+        [_MultiColumnSortedKey(*k) for k in zip(*data.values(), strict=True)]
+    )
 
     # get the number of bytes of the array
     bytes_multi = multi_column_array.nbytes

@@ -44,7 +44,9 @@ class Splitter:
         print(f"{self.name}: {group_names=}")
         yield group_names
 
-    def split_pyarrow_table(self, item: pa.Table, key_column_name: str) -> Iterator[pa.Table | list[int]]:
+    def split_pyarrow_table(
+        self, item: pa.Table, key_column_name: str
+    ) -> Iterator[pa.Table | list[int]]:
         """Split a single table into multiple parts. Each part has the
         same group key.
         """
@@ -78,7 +80,9 @@ class Merger:
         blks = ray.get(list(blks))
         print(f"{self.name}: {group_keys=}, {blks=}")
 
-        for key, block_iterator in itertools.groupby(zip(group_keys, blks, strict=True), lambda x: x[0]):
+        for key, block_iterator in itertools.groupby(
+            zip(group_keys, blks, strict=True), lambda x: x[0]
+        ):
             block = [b for _, b in block_iterator]
             print(key, block)
             yield list(np.concatenate(block))
@@ -99,11 +103,15 @@ class Merger:
         blks = ray.get(blks)
 
         blks_len = [len(b) for b in blks]
-        print(f"{self.name}: {len(keys)=}, len of blks = {min(blks_len)=}, {max(blks_len)=}")
+        print(
+            f"{self.name}: {len(keys)=}, len of blks = {min(blks_len)=}, {max(blks_len)=}"
+        )
 
         all_keys = []
         all_meta = []
-        for key, block_iterator in itertools.groupby(zip(keys, blks, strict=True), lambda x: x[0]):
+        for key, block_iterator in itertools.groupby(
+            zip(keys, blks, strict=True), lambda x: x[0]
+        ):
             stats = BlockExecStats.builder()
             blocks = [b for _, b in block_iterator]
             all_keys.append(key)
@@ -245,7 +253,10 @@ async def apply_repartition(
     num_blocks_per_actor = ceil(len(blocks_with_metadata) / num_actors)
     print(f"{num_blocks_per_actor=}")
 
-    actors = [Actor.options(name=f"Actor-({idx, i})").remote(i, keys, num_actors) for i in range(num_actors)]
+    actors = [
+        Actor.options(name=f"Actor-({idx, i})").remote(i, keys, num_actors)
+        for i in range(num_actors)
+    ]
 
     batches = []
     split_tasks = []
@@ -254,7 +265,10 @@ async def apply_repartition(
         blocks = [b for b, _ in bm]
         split_tasks.append(actors[i].split.remote(blocks))
 
-    boundary_tasks = [actor.send_to_left.remote(left_actor) for left_actor, actor in itertools.pairwise(actors)]
+    boundary_tasks = [
+        actor.send_to_left.remote(left_actor)
+        for left_actor, actor in itertools.pairwise(actors)
+    ]
 
     merge_tasks = [actor.merge.remote() for actor in actors]
     consume_tasks = [actor.consume.remote() for actor in actors]

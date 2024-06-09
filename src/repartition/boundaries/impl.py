@@ -31,7 +31,9 @@ def convert_into_recarray(data: dict) -> np.recarray:
     return np.array(list(zip(*data.values(), strict=True)), dtype=dtype)
 
 
-def get_key_boundaries_v0(keys: np.ndarray | dict[str, np.ndarray], append_first: bool = False) -> np.ndarray:
+def get_key_boundaries_v0(
+    keys: np.ndarray | dict[str, np.ndarray], append_first: bool = False
+) -> np.ndarray:
     """Get the boundaries of the key column"""
 
     if isinstance(keys, dict):
@@ -48,7 +50,9 @@ def get_key_boundaries_v0(keys: np.ndarray | dict[str, np.ndarray], append_first
     return boundaries
 
 
-def get_key_boundaries_v1(keys: np.ndarray | dict[str, np.ndarray], append_first: bool = False) -> np.ndarray:
+def get_key_boundaries_v1(
+    keys: np.ndarray | dict[str, np.ndarray], append_first: bool = False
+) -> np.ndarray:
     """Get the boundaries of the key column"""
 
     if isinstance(keys, dict):
@@ -65,18 +69,24 @@ def get_key_boundaries_v1(keys: np.ndarray | dict[str, np.ndarray], append_first
 
 
 def get_key_boundaries_v2(
-    keys: np.ndarray | dict[str, np.ndarray], append_first: bool = False, return_recarray: bool = False
+    keys: np.ndarray | dict[str, np.ndarray],
+    append_first: bool = False,
+    return_recarray: bool = False,
 ) -> np.ndarray | tuple[np.ndarray, np.recarray]:
     """Get the boundaries of the key column"""
 
     first_entry = [0] if append_first else []
 
     if isinstance(keys, np.ndarray):
-        indices = np.hstack([first_entry, np.where(keys[1:] != keys[:-1])[0] + 1, [len(keys)]])
+        indices = np.hstack(
+            [first_entry, np.where(keys[1:] != keys[:-1])[0] + 1, [len(keys)]]
+        )
         arr_ = keys
     else:
         arr_ = np.rec.fromarrays(keys.values())
-        indices = np.hstack([first_entry, np.where(arr_[1:] != arr_[:-1])[0] + 1, [len(arr_)]])
+        indices = np.hstack(
+            [first_entry, np.where(arr_[1:] != arr_[:-1])[0] + 1, [len(arr_)]]
+        )
 
     if return_recarray:
         return indices, arr_

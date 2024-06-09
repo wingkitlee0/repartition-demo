@@ -30,8 +30,12 @@ def main():
         help="Enable batching by processing each file one by one",
     )
     parser.add_argument("--large", action="store_true", help="use large dataset")
-    parser.add_argument("--full", action="store_true", help="use all files (default 1 file)")
-    parser.add_argument("--output", "-o", type=str, default=None, help="output directory")
+    parser.add_argument(
+        "--full", action="store_true", help="use all files (default 1 file)"
+    )
+    parser.add_argument(
+        "--output", "-o", type=str, default=None, help="output directory"
+    )
     parser.add_argument(
         "--mode",
         type=str,
@@ -55,11 +59,15 @@ def main():
         if args.full:
             ray_ds = ray.data.read_parquet("../43_repartition_barebone/data/")
         else:
-            ray_ds = ray.data.read_parquet("../43_repartition_barebone/data/data-0.parquet")
+            ray_ds = ray.data.read_parquet(
+                "../43_repartition_barebone/data/data-0.parquet"
+            )
     elif args.full:
         ray_ds = ray.data.read_parquet("../43_repartition_barebone/data_small")
     else:
-        ray_ds = ray.data.read_parquet("../43_repartition_barebone/data_small/data-0.parquet")
+        ray_ds = ray.data.read_parquet(
+            "../43_repartition_barebone/data_small/data-0.parquet"
+        )
 
     if args.mode == "rbc":
         result = (

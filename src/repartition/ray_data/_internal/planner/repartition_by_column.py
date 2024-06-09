@@ -14,12 +14,15 @@ from ray.data._internal.execution.interfaces import RefBundle, TaskContext
 #     RepartitionByColumnTaskSpec,
 # )
 from ray.data._internal.stats import StatsDict
-from repartition.ray_data._internal.planner.exchange.repartition_task_scheduler import RepartitionByColumnTaskScheduler
-from repartition.ray_data._internal.planner.exchange.repartition_task_spec import RepartitionByColumnTaskSpec
+from repartition.ray_data._internal.planner.exchange.repartition_task_scheduler import (
+    RepartitionByColumnTaskScheduler,
+)
+from repartition.ray_data._internal.planner.exchange.repartition_task_spec import (
+    RepartitionByColumnTaskSpec,
+)
 
 if typing.TYPE_CHECKING:
     from ray.data._internal.execution.interfaces import AllToAllTransformFn
-
 
 
 logger = logging.getLogger(__name__)

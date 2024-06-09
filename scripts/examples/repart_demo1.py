@@ -6,6 +6,7 @@ Example:
     ```
 
 """
+
 import argparse
 import logging
 
@@ -48,7 +49,9 @@ def ray_process_v0(i, rb, num_actors):
 
     print(ds.schema)
 
-    return ds.map_batches(mapping_func, batch_size=None, batch_format="pyarrow").to_arrow_refs()
+    return ds.map_batches(
+        mapping_func, batch_size=None, batch_format="pyarrow"
+    ).to_arrow_refs()
 
 
 def process_v0(paths, batch_size, num_actors: int):
@@ -70,9 +73,11 @@ def process_v0(paths, batch_size, num_actors: int):
 
         ds = ray.data.from_arrow_refs(table_refs)
 
-        print(ds.schema)
+        print(ds.schema())
 
-        results = ds.map_batches(mapping_func, batch_size=None, batch_format="pyarrow").to_arrow_refs()
+        results = ds.map_batches(
+            mapping_func, batch_size=None, batch_format="pyarrow"
+        ).to_arrow_refs()
 
         all_results.extend(results)
 
@@ -82,17 +87,35 @@ def process_v0(paths, batch_size, num_actors: int):
 
 
 def process_v1(paths, batch_size, num_actors: int):
-    pass
+    pq_ds = pq.ParquetDataset(paths)
+
+    ref_bundles = get_ref_bundles_from_pyarrow_dataset(pq_ds, batch_size, None)
+    blocks = [b for rb in ref_bundles for b, _ in rb.blocks]
+
+    print(f"number of ref_bundles: {len(ref_bundles)}")
+    print(f"number of blocks: {len(blocks)}")
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", "-i", type=str, required=True, help="input directory or file")
-    parser.add_argument("-n", "--num-actors", type=int, default=3, help="number of actors")
-    parser.add_argument("-b", "--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="batch size per block")
-    parser.add_argument("--mode", type=int, default=0, help="0: process_v0(), 1: process_v1()")
+    parser.add_argument(
+        "--input", "-i", type=str, required=True, help="input directory or file"
+    )
+    parser.add_argument(
+        "-n", "--num-actors", type=int, default=3, help="number of actors"
+    )
+    parser.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help="batch size per block",
+    )
+    parser.add_argument(
+        "-m", "--mode", type=int, default=0, help="0: process_v0(), 1: process_v1()"
+    )
     parser.add_argument("--debug", action="store_true", help="debug mode")
     args = parser.parse_args()
 

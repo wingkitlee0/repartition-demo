@@ -10,7 +10,9 @@ from ray.data._internal.planner.exchange.interfaces import ExchangeTaskScheduler
 from ray.data._internal.stats import StatsDict
 
 from repartition.ray.actor_impl.core import apply_repartition
-from repartition.ray.ray_data_impl.repartition_task_spec import RepartitionByColumnTaskSpec
+from repartition.ray.ray_data_impl.repartition_task_spec import (
+    RepartitionByColumnTaskSpec,
+)
 
 
 def repartition_by_column(
@@ -50,7 +52,9 @@ class RepartitionByColumnTaskScheduler(ExchangeTaskScheduler):
 
         # Looping over N files
         for ref_id, ref in enumerate(refs):
-            repartitioned_refs = asyncio.run(apply_repartition(ref_id, ref.blocks, *self._exchange_spec._map_args))
+            repartitioned_refs = asyncio.run(
+                apply_repartition(ref_id, ref.blocks, *self._exchange_spec._map_args)
+            )
 
             # Looping over num_actors
             for i, blocks_or_metadata in enumerate(repartitioned_refs):

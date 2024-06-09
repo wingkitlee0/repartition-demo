@@ -20,12 +20,16 @@ class RandomDataCreator:
 
         all_data = []
         for i in range(self.npartitions):
-            groups = i * self.ngroups + np.arange(self.ngroups)  # groups in current partition
+            groups = i * self.ngroups + np.arange(
+                self.ngroups
+            )  # groups in current partition
 
             if not self.ordered:
                 rng.shuffle(groups)
 
-            repeats = rng.randint(self.nmin_per_group, self.nmax_per_group, len(groups))  # lengths of each group
+            repeats = rng.randint(
+                self.nmin_per_group, self.nmax_per_group, len(groups)
+            )  # lengths of each group
             data = np.repeat(groups, repeats)
             all_data.append(data)
 
@@ -36,10 +40,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", "-s", default=1234, type=int, help="random seed")
     parser.add_argument("--out", "-o", required=True, help="output dir")
-    parser.add_argument("--npartitions", "-n", default=5, type=int, help="number of partitions")
-    parser.add_argument("--ngroups", "-g", default=5, type=int, help="number of groups per partition")
-    parser.add_argument("--nmin", default=5, type=int, help="max number of rows per group")
-    parser.add_argument("--nmax", default=10, type=int, help="max number of rows per group")
+    parser.add_argument(
+        "--npartitions", "-n", default=5, type=int, help="number of partitions"
+    )
+    parser.add_argument(
+        "--ngroups", "-g", default=5, type=int, help="number of groups per partition"
+    )
+    parser.add_argument(
+        "--nmin", default=5, type=int, help="max number of rows per group"
+    )
+    parser.add_argument(
+        "--nmax", default=10, type=int, help="max number of rows per group"
+    )
     parser.add_argument(
         "--unordered",
         action="store_true",

@@ -8,10 +8,13 @@ import typing
 from collections import deque
 from math import ceil
 from typing import Any, TypeVar, Union
+from contextlib import contextmanager
 
 import ray
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor, BlockExecStats
+
+from utils.timer import timer_context
 
 if typing.TYPE_CHECKING:
     from collections.abc import Iterator
@@ -35,7 +38,9 @@ def batched(blocks: list[Any], batch_size: int) -> Iterator[list[Any]]:
         yield blocks[i : i + batch_size]
 
 
-def split_single_block(block: Block, keys: list[str] | str) -> Iterator[tuple[str | int, Block]]:
+def split_single_block(
+    block: Block, keys: list[str] | str
+) -> Iterator[tuple[str | int, Block]]:
     """Split a single block into multiple blocks based on the key column(s).
 
     Args:
@@ -115,10 +120,14 @@ class Actor:
         # if not left most, there is a left bucket
         self.left_bucket = None if self.idx == 0 else asyncio.Queue(1)
         # if not right most, there is a right bucket
-        self.right_bucket = None if (self.idx == self.world_size - 1) else asyncio.Queue(1)  # local only
+        self.right_bucket = (
+            None if (self.idx == self.world_size - 1) else asyncio.Queue(1)
+        )  # local only
 
         self.right_actor = None
-        self.right_actor_ready = asyncio.Event() if self.right_bucket is not None else None
+        self.right_actor_ready = (
+            asyncio.Event() if self.right_bucket is not None else None
+        )
 
         # Indicate it's ready to consume
         self.consume_ready = asyncio.Event()
@@ -152,7 +161,9 @@ class Actor:
         # merge blocks
         await self.merge_blocks()
 
-    async def split_blocks(self, block_refs: list[ray.ObjectRef]) -> list[ray.ObjectRef]:
+    async def split_blocks(
+        self, block_refs: list[ray.ObjectRef]
+    ) -> list[ray.ObjectRef]:
         """Split a list of blocks based on the group key.
 
         This is the map task that generates multiple sub-blocks for each input block,
@@ -204,7 +215,11 @@ class Actor:
     async def merge_right_blocks(self):
         """Merge the right-most blocks"""
 
-        if self.right_bucket is None or self.right_actor is None or self.right_actor_ready is None:
+        if (
+            self.right_bucket is None
+            or self.right_actor is None
+            or self.right_actor_ready is None
+        ):
             raise ValueError("Right bucket does not exist")
 
         await self.right_actor_ready.wait()
@@ -214,7 +229,9 @@ class Actor:
         right_key, right_blk = await self.right_actor.send_to_left.remote()
         left_key, left_block = await self.right_bucket.get()
 
-        for blk, meta, key in merge_tables([(left_key, left_block), (right_key, right_blk)]):
+        for blk, meta, key in merge_tables(
+            [(left_key, left_block), (right_key, right_blk)]
+        ):
             self.output_queue.put_nowait((blk, meta, key))
 
         # update
@@ -249,7 +266,9 @@ class Actor:
 def setup_connected_actors(num_actors: int, keys: Union[list[str], str]):
     actors: list[Actor] = [Actor.remote(i, num_actors, keys) for i in range(num_actors)]
 
-    add_right = [left.set_right_actor.remote(right) for left, right in itertools.pairwise(actors)]
+    add_right = [
+        left.set_right_actor.remote(right) for left, right in itertools.pairwise(actors)
+    ]
 
     ray.get(add_right)
     return actors
@@ -263,7 +282,9 @@ def retreive_results(actors):
     The rest of the function is simply rearranging the output
     without materializing the object references.
     """
-    num_ouput_blocks = ray.get([actor.get_num_output_blocks.remote() for actor in actors])
+    num_ouput_blocks = ray.get(
+        [actor.get_num_output_blocks.remote() for actor in actors]
+    )
 
     refs = [
         actor.consume.options(num_returns=num_blocks + 2).remote()
@@ -274,10 +295,11 @@ def retreive_results(actors):
     for refs_per_actor in refs:
         output_keys.append(refs_per_actor.pop())
         output_metadata.append(refs_per_actor.pop())
-        output_blocks.extend(refs_per_actor)
+        # output_blocks.extend(refs_per_actor)
+        yield from refs_per_actor
 
     # yield each blocks
-    yield from output_blocks
+    # yield from output_blocks
     # yield 2*K lists of metadata and keys
     yield from output_metadata
     yield from output_keys
@@ -308,14 +330,11 @@ def repartition_runner(
         ref_id,
         len(blocks),
         num_actors,
-        num_blocks_per_actor
+        num_blocks_per_actor,
     )
 
-    time_setup_start = time.perf_counter()
-    actors = setup_connected_actors(num_actors=num_actors, keys=keys)
-    time_setup_end = time.perf_counter()
-
-    logger.debug("done setting up actors. taken: %0.3f", time_setup_end - time_setup_start)
+    with timer_context("setup actors: taken "):
+        actors = setup_connected_actors(num_actors=num_actors, keys=keys)
 
     process_tasks = [
         actors[i].process.remote(batch_per_actor)
@@ -324,10 +343,6 @@ def repartition_runner(
 
     logger.debug("type(process_tasks[0]) = %s", type(process_tasks[0]))
 
-
-    time_consume_start = time.perf_counter()
-    ray.get(process_tasks)
-    yield from retreive_results(actors)
-    time_consume_end = time.perf_counter()
-
-    logger.info("retreive results from actors: taken " f"{(time_consume_end - time_consume_start):.3f}s")
+    with timer_context("retreive results from actors: taken "):
+        ray.get(process_tasks)
+        yield from retreive_results(actors)

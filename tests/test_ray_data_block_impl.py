@@ -118,7 +118,9 @@ def test_split_block_non_numeric_block(non_numeric_block):
 
 def test_split_block_missing_values_block(missing_values_block):
     keys_and_blocks = list(split_block(missing_values_block, "x"))
-    assert len(keys_and_blocks) == 3  # Assuming the function handles NaN as a separate group
+    assert (
+        len(keys_and_blocks) == 3
+    )  # Assuming the function handles NaN as a separate group
     # Assuming that the NaN group comes last, the keys should be 1, 2, and then NaN
     assert keys_and_blocks[0][0] == 1
     assert np.isnan(keys_and_blocks[1][0])

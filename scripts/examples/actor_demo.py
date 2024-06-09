@@ -26,9 +26,15 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", "-i", type=str, required=True, help="input directory or file")
-    parser.add_argument("-n", "--num-actors", type=int, default=3, help="number of actors")
-    parser.add_argument("-b", "--batch-size", type=int, default=1000, help="batch size per block")
+    parser.add_argument(
+        "--input", "-i", type=str, required=True, help="input directory or file"
+    )
+    parser.add_argument(
+        "-n", "--num-actors", type=int, default=3, help="number of actors"
+    )
+    parser.add_argument(
+        "-b", "--batch-size", type=int, default=1000, help="batch size per block"
+    )
     parser.add_argument("--debug", action="store_true", help="debug mode")
     args = parser.parse_args()
 
@@ -42,7 +48,9 @@ def main():
 
     ref_bundles = get_ref_bundles_from_pyarrow_dataset(pq_ds, args.batch_size, None)
 
-    repartitioned_ref_bundles, _ = repartition_by_column(ref_bundles, "g", args.num_actors)
+    repartitioned_ref_bundles, _ = repartition_by_column(
+        ref_bundles, "g", args.num_actors
+    )
 
     print(f"number of ref_bundles: {len(repartitioned_ref_bundles)}")
 

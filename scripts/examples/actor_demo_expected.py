@@ -5,8 +5,16 @@ import polars as pl
 
 def main():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input", "-i", type=str, required=True, help="input directory or file")
-    parser.add_argument("--output", "-o", type=str, default="../data/expected.csv", help="output filename")
+    parser.add_argument(
+        "--input", "-i", type=str, required=True, help="input directory or file"
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default="../data/expected.csv",
+        help="output filename",
+    )
     args = parser.parse_args()
 
     (

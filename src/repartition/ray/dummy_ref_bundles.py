@@ -1,4 +1,5 @@
 """Mimic what Ray Data does"""
+
 from __future__ import annotations
 
 import logging
@@ -53,7 +54,9 @@ def get_ref_bundles_from_pyarrow_dataset(
         )
         block_refs, metadata_ref = blocks_and_metadata[:-1], blocks_and_metadata[-1]
         metadata = ray.get(metadata_ref)  # a list
-        blocks_with_metadata: list[tuple[ObjectRef[Block], Block]] = list(zip(block_refs, metadata, strict=True))
+        blocks_with_metadata: list[tuple[ObjectRef[Block], Block]] = list(
+            zip(block_refs, metadata, strict=True)
+        )
         ref_bundles.append(
             RefBundle(
                 blocks=blocks_with_metadata,
