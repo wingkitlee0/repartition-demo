@@ -10,12 +10,15 @@ Example:
 import argparse
 import logging
 
+import numpy as np
 import polars as pl
 import pyarrow.parquet as pq
 import ray
 import ray.data
+
 from repartition.ray.dummy_ref_bundles import get_ref_bundles_from_pyarrow_dataset
-from repartition.ray_data._internal.repartition_by_column import repartition_runner
+from repartition.ray_data._internal.repartition_by_column import Repartitioner
+from utils.timer import timer_context
 
 logger = logging.getLogger(__name__)
 
@@ -35,25 +38,6 @@ def mapping_func(table):
     )
 
 
-@ray.remote
-def ray_process_v0(i, rb, num_actors):
-    print(f"{i=}, {len(rb.blocks)=}")
-
-    block_refs = [b for b, _ in rb.blocks]
-
-    refs = list(repartition_runner(i, block_refs, ["g", num_actors]))
-
-    table_refs = refs[: -(num_actors * 2)]
-
-    ds = ray.data.from_arrow_refs(table_refs)
-
-    print(ds.schema)
-
-    return ds.map_batches(
-        mapping_func, batch_size=None, batch_format="pyarrow"
-    ).to_arrow_refs()
-
-
 def process_v0(paths, batch_size, num_actors: int):
     pq_ds = pq.ParquetDataset(paths)
 
@@ -61,13 +45,15 @@ def process_v0(paths, batch_size, num_actors: int):
 
     print(f"number of ref_bundles: {len(ref_bundles)}")
 
+    repartitioner = Repartitioner.remote(num_actors, ["g"])
+
     all_results = []
     for i, rb in enumerate(ref_bundles):
         print(f"{i=}, {len(rb.blocks)=}")
 
         block_refs = [b for b, _ in rb.blocks]
 
-        refs = list(repartition_runner(i, block_refs, ["g", num_actors]))
+        refs = list(repartitioner.run_repartition.remote(i, block_refs))
 
         table_refs = refs[: -(num_actors * 2)]
 
@@ -80,6 +66,8 @@ def process_v0(paths, batch_size, num_actors: int):
         ).to_arrow_refs()
 
         all_results.extend(results)
+
+        ray.get(repartitioner.clear.remote())
 
     print("Processing output")
     df = pl.concat([pl.from_arrow(item) for item in ray.get(all_results)])
@@ -94,6 +82,25 @@ def process_v1(paths, batch_size, num_actors: int):
 
     print(f"number of ref_bundles: {len(ref_bundles)}")
     print(f"number of blocks: {len(blocks)}")
+
+    repartitioner = Repartitioner.remote(num_actors, ["g"])
+
+    num_blocks_per_actor = int(np.ceil(len(blocks) // num_actors))
+
+    refs = []
+    for i in range(0, len(blocks), num_blocks_per_actor):
+        for ref in repartitioner.run_repartition.remote(
+            i, blocks[i : i + num_blocks_per_actor]
+        ):
+            refs.append(ref)
+
+    count = 0
+    while refs:
+        [ready], refs = ray.wait(refs)
+        count += 1
+        if count % 1000 == 0:
+            print(f"processed {count} blocks")
+    print(f"number of refs: {count}")
 
 
 def main():
@@ -124,21 +131,22 @@ def main():
         root_logger.setLevel(logging.DEBUG)
         logging.getLogger("ray.data").setLevel(logging.DEBUG)
 
-    match args.mode:
-        case 0:
-            process_v0(
-                paths=args.input,
-                batch_size=args.batch_size,
-                num_actors=args.num_actors,
-            )
-        case 1:
-            process_v1(
-                paths=args.input,
-                batch_size=args.batch_size,
-                num_actors=args.num_actors,
-            )
-        case _:
-            raise ValueError(f"Unknown mode: {args.mode}")
+    with timer_context("Total time taken"):
+        match args.mode:
+            case 0:
+                process_v0(
+                    paths=args.input,
+                    batch_size=args.batch_size,
+                    num_actors=args.num_actors,
+                )
+            case 1:
+                process_v1(
+                    paths=args.input,
+                    batch_size=args.batch_size,
+                    num_actors=args.num_actors,
+                )
+            case _:
+                raise ValueError(f"Unknown mode: {args.mode}")
 
 
 if __name__ == "__main__":

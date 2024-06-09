@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from repartition.serial.list_impl import merge_blocks, split_blocks
 
 

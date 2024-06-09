@@ -4,6 +4,7 @@ from functools import partial
 
 import numpy as np
 import pytest
+
 from repartition.boundaries.impl import (
     _MultiColumnSortedKey,
     convert_into_recarray,

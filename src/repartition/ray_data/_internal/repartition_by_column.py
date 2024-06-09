@@ -6,9 +6,9 @@ import logging
 import time
 import typing
 from collections import deque
+from contextlib import contextmanager
 from math import ceil
 from typing import Any, TypeVar, Union
-from contextlib import contextmanager
 
 import ray
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
@@ -144,6 +144,27 @@ class Actor:
     def __repr__(self):
         return self.name
 
+    def clear(self):
+        self.split_queue.clear()
+
+        if self.left_bucket is not None:
+            self.left_bucket = asyncio.Queue(1)
+
+        if self.right_bucket is not None:
+            self.right_bucket = asyncio.Queue(1)
+
+        self.right_actor = None
+
+        self.consume_ready.clear()
+
+        # For output
+        self._num_output_blocks = 0
+        self.output_queue = asyncio.Queue()
+        # For logging
+        self._input_num_rows = 0
+        self._split_num_rows = 0
+        self._merge_num_rows = 0
+
     def set_right_actor(self, right_actor):
         self.right_actor = right_actor
         self.right_actor_ready.set()
@@ -263,7 +284,7 @@ class Actor:
         return self._split_num_rows
 
 
-def setup_connected_actors(num_actors: int, keys: Union[list[str], str]):
+def setup_connected_actors(num_actors: int, keys: Union[list[str], str]) -> list[Actor]:
     actors: list[Actor] = [Actor.remote(i, num_actors, keys) for i in range(num_actors)]
 
     add_right = [
@@ -305,44 +326,50 @@ def retreive_results(actors):
     yield from output_keys
 
 
-def repartition_runner(
-    ref_id,
-    blocks,
-    map_args: tuple[str | list[str], int],
-) -> Iterator[ray.ObjectRef]:
-    """
-    Yields:
-        Assuming K actors, this function first yields each block's object reference
-        individually. Then it yields K refs from each actor for the metadata, i.e.,
-        K lists of metadata. Finally, it yields K refs from each actor for the keys,
-        i.e., K lists of keys.
-    """
+@ray.remote(num_cpus=0)
+class Repartitioner:
+    def __init__(self, num_actors: int, keys: Union[list[str], str]):
+        self.num_actors = num_actors
+        self.keys = keys
+        with timer_context("setup actors"):
+            self.actors = setup_connected_actors(num_actors, keys)
 
-    # TODO: currently, 'concurrency' only means number of actors.
-    keys, num_actors = map_args
+    def clear(self):
+        ray.get([actor.clear.remote() for actor in self.actors])
 
-    if len(blocks) <= num_actors:
-        num_actors = 1
-
-    num_blocks_per_actor = ceil(len(blocks) / num_actors)
-    logger.info(
-        "repartition_runner(%d): len(blocks)=%d, num_actors=%d, num_blocks_per_actor=%d",
+    def run_repartition(
+        self,
         ref_id,
-        len(blocks),
-        num_actors,
-        num_blocks_per_actor,
-    )
+        blocks,
+    ):
+        """
+        Yields:
+            Assuming K actors, this function first yields each block's object reference
+            individually. Then it yields K refs from each actor for the metadata, i.e.,
+            K lists of metadata. Finally, it yields K refs from each actor for the keys,
+            i.e., K lists of keys.
+        """
+        if len(blocks) <= self.num_actors:
+            num_actors = 1
+        else:
+            num_actors = self.num_actors
 
-    with timer_context("setup actors: taken "):
-        actors = setup_connected_actors(num_actors=num_actors, keys=keys)
+        num_blocks_per_actor = ceil(len(blocks) / num_actors)
+        logger.info(
+            "repartition_runner(%d): len(blocks)=%d, num_actors=%d, num_blocks_per_actor=%d",
+            ref_id,
+            len(blocks),
+            num_actors,
+            num_blocks_per_actor,
+        )
 
-    process_tasks = [
-        actors[i].process.remote(batch_per_actor)
-        for i, batch_per_actor in enumerate(batched(blocks, num_blocks_per_actor))
-    ]
+        process_tasks = [
+            self.actors[i].process.remote(batch_per_actor)
+            for i, batch_per_actor in enumerate(batched(blocks, num_blocks_per_actor))
+        ]
 
-    logger.debug("type(process_tasks[0]) = %s", type(process_tasks[0]))
+        logger.debug("type(process_tasks[0]) = %s", type(process_tasks[0]))
 
-    with timer_context("retreive results from actors: taken "):
-        ray.get(process_tasks)
-        yield from retreive_results(actors)
+        with timer_context("retreive results from actors: taken "):
+            ray.get(process_tasks)
+            yield from retreive_results(self.actors)

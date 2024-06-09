@@ -1,6 +1,6 @@
-from contextlib import contextmanager
-import time
 import logging
+import time
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
