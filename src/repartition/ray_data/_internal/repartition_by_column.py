@@ -283,6 +283,23 @@ class Actor:
     def get_split_num_rows(self):
         return self._split_num_rows
 
+    async def consume_stream(self):
+        """Consume the output queue"""
+        all_metadata, all_keys = [], []
+        block_count = 0
+        while True:
+            item = await self.output_queue.get()
+            if item == "done":
+                print(f"{block_count=}")
+                yield all_metadata
+                yield all_keys
+
+            block, meta, key = item
+            yield block
+            block += 1
+            all_metadata.append(meta)
+            all_keys.append(key)
+
 
 def setup_connected_actors(num_actors: int, keys: Union[list[str], str]) -> list[Actor]:
     actors: list[Actor] = [Actor.remote(i, num_actors, keys) for i in range(num_actors)]
@@ -373,3 +390,26 @@ class Repartitioner:
         with timer_context("retreive results from actors: taken "):
             ray.get(process_tasks)
             yield from retreive_results(self.actors)
+            # yield from self.retreive_results()
+
+    def retreive_results(self):
+        """Retreive the results from the actors.
+
+        Since we do not know the number of blocks in advance, we need
+        to call `get_num_output_blocks` to get the number of blocks.
+        The rest of the function is simply rearranging the output
+        without materializing the object references.
+        """
+
+        output_metadata, output_keys = [], []
+        for actor in self.actors:
+            refs_per_actor = ray.get(list(actor.consume_stream.remote()))
+
+            output_keys.append(refs_per_actor.pop())
+            output_metadata.append(refs_per_actor.pop())
+            # yield the remainging items (blocks)
+            yield from refs_per_actor
+
+        # yield 2*K lists of metadata and keys
+        yield from output_metadata
+        yield from output_keys
