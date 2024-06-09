@@ -74,10 +74,10 @@ def process_v0(paths, batch_size, num_actors: int):
 
         results = ds.map_batches(mapping_func, batch_size=None, batch_format="pyarrow").to_arrow_refs()
 
-        all_results.append(results)
+        all_results.extend(results)
 
     print("Processing output")
-    df = pl.from_arrow(ray.get(ray.get(all_results)))
+    df = pl.concat([pl.from_arrow(item) for item in ray.get(all_results)])
     df.write_csv(f"result_repartition_n{num_actors}.csv")
 
 
